@@ -7,7 +7,7 @@
 //
 
 #import "ViewController.h"
-
+#import "FLSwipeOptionsCell.h"
 @interface ViewController ()<UITableViewDelegate,UITableViewDataSource>
 @property (nonatomic,weak)UITableView *tableView;
 @end
@@ -38,11 +38,11 @@ static NSString * resueId = @"table view reuse id";
 
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:resueId];
+    FLSwipeOptionsCell *cell = [tableView dequeueReusableCellWithIdentifier:resueId];
     if (cell == nil) {
-        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:resueId];
+        cell = [[FLSwipeOptionsCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:resueId];
     }
-    cell.textLabel.text = [NSString stringWithFormat:@"clarence 小咧咧 %zd号",random() % 100];
+//    cell.textLabel.text = [NSString stringWithFormat:@"clarence 小咧咧 %zd号",random() % 100];
     return cell;
 }
 

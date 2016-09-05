@@ -16,10 +16,19 @@
     return action;
 }
 
++ (instancetype)fl_deleteActionWithTitle:(nullable NSString *)title Handle:(void (^)(FLTableViewRowAction *action, NSIndexPath *indexPath))handler{
+    FLTableViewRowAction *action = [[self alloc] init];
+    action.title = title;
+    return action;
+}
+
 @end
 
-@interface FLSwipeOptionsCell ()
+@interface FLSwipeOptionsCell ()<UIScrollViewDelegate>
+// base scrollView
 @property (nonatomic,weak)UIScrollView *scrollView;
+// last scrollView
+@property (nonatomic,weak)UIScrollView *lastScrollView;
 
 // init content view on scrollView
 @property (nonatomic,weak)UIView *scrollViewContentView;
@@ -31,7 +40,10 @@
 @property (nonatomic,strong)NSArray *actionArr;
 @end
 
-@implementation FLSwipeOptionsCell
+@implementation FLSwipeOptionsCell{
+    CGFloat scrollViewButtonsViewWidth;
+    CGFloat scrollViewStopedOffsetX;
+}
 
 - (void)awakeFromNib {
     [super awakeFromNib];
@@ -46,23 +58,35 @@
 }
 
 - (void)prepareUI{
-    // init scrollView
-    UIScrollView *scrollView = [[UIScrollView alloc] init];
-    self.scrollView = scrollView;
-    [self.contentView addSubview:scrollView];
+    self.selectionStyle = UITableViewCellSelectionStyleNone;
     
     // init buttons View
     UIView *scrollViewButtonsView = [[UIView alloc] init];
+    scrollViewButtonsView.backgroundColor = [UIColor orangeColor];
     self.scrollViewButtonsView = scrollViewButtonsView;
     [self.contentView addSubview:scrollViewButtonsView];
     
+    // init scrollView
+    UIScrollView *scrollView = [[UIScrollView alloc] init];
+    scrollView.delegate = self;
+    scrollView.showsHorizontalScrollIndicator = NO;
+    self.scrollView = scrollView;
+    [self.contentView addSubview:scrollView];
+    
     // init scrollView content view
     UIView *scrollViewContentView = [[UIView alloc] init];
+    scrollViewContentView.backgroundColor = [UIColor redColor];
     self.scrollViewContentView = scrollViewContentView;
-    [self.contentView addSubview:scrollViewContentView];
+    [self.scrollView addSubview:scrollViewContentView];
     
     // init button on buttonsView
-    self.actionArr = [self.delegate fl_createRowAction:self];
+    if ([self.delegate respondsToSelector:@selector(fl_createRowAction:)]) {
+        self.actionArr = [self.delegate fl_createRowAction:self];
+    }
+    else{
+        
+        self.actionArr = [NSArray arrayWithObject:[FLTableViewRowAction fl_deleteActionWithTitle:@"删除" Handle:nil]];
+    }
     for (NSInteger index = 0; index < self.actionArr.count; index ++) {
         UIButton *button = [[UIButton alloc] init];
         [self.scrollViewButtonsView addSubview:button];
@@ -76,7 +100,7 @@
     self.scrollView.frame = CGRectMake(0, 0, CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
     
     // count button full width
-    CGFloat scrollViewButtonsViewWidth = 0.0f;
+//    CGFloat scrollViewButtonsViewWidth = 0.0f;
     for (FLTableViewRowAction *action in self.actionArr) {
         scrollViewButtonsViewWidth += [action.title boundingRectWithSize:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX) options:0 attributes:nil context:nil].size.width;
     }
@@ -91,16 +115,48 @@
     
     for (NSInteger index = 0; index < self.buttonWidthArrM.count; index ++) {
         NSNumber *numWidth = self.buttonWidthArrM[index];
-        NSNumber *nextNumWidth = self.buttonWidthArrM[index + 1];
-        UIButton *button = self.buttonArrM[index];
+        if (index < self.buttonWidthArrM.count - 1) {
+            NSNumber *nextNumWidth = self.buttonWidthArrM[index + 1];
+        }
+        
+//        UIButton *button = self.buttonArrM[index];
 //        button.frame = CGRectMake(buttonWidth, <#CGFloat y#>, <#CGFloat width#>, <#CGFloat height#>)
     }
     
     self.scrollViewButtonsView.frame = CGRectMake(CGRectGetWidth(self.bounds) - scrollViewButtonsViewWidth, 0, scrollViewButtonsViewWidth, CGRectGetHeight(self.bounds));
     
     self.scrollViewContentView.frame = CGRectMake(0, 0, CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
+    
+    // scrollView contentSize
+    self.scrollView.contentSize = CGSizeMake(CGRectGetWidth(self.bounds) + scrollViewButtonsViewWidth, CGRectGetHeight(self.bounds));
+    
 }
 
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView{
+    NSLog(@"offset.x = %.2lf",scrollView.contentOffset.x);
+    if (scrollView.contentOffset.x < 0) {
+        scrollView.scrollEnabled = NO;
+    }
+    else {
+        scrollView.scrollEnabled = YES;
+        if (scrollViewStopedOffsetX > scrollView.contentOffset.x) {
+            [self backToZero];
+        }
+    }
+}
+
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView{
+    // 正常速度拖动的时候，这个就会自动记录最后的x为0，防止快速拖动防止记录没有reset，然后上个方法scrollViewStopedOffsetX > scrollView.contentOffset.x一直成立，造成没办法显示按钮，此时在backToZero手动reset可解决
+    scrollViewStopedOffsetX = scrollView.contentOffset.x;
+}
+
+- (void)backToZero{
+    CGPoint offset = self.scrollView.contentOffset;
+    offset.x = 0.0f;
+    self.scrollView.contentOffset = offset;
+    // reset
+    scrollViewStopedOffsetX = 0.0f;
+}
 
 #pragma mark -- Setter & Getter
 

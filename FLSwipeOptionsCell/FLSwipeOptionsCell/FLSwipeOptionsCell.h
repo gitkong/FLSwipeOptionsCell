@@ -15,6 +15,9 @@
 
 + (instancetype)fl_rowActionWithStyle:(UITableViewRowActionStyle)style title:(nullable NSString *)title handler:(void (^)(FLTableViewRowAction *action, NSIndexPath *indexPath))handler;
 
++ (instancetype)fl_deleteActionWithTitle:(nullable NSString *)title Handle:(void (^)(FLTableViewRowAction *action, NSIndexPath *indexPath))handler;
+
+
 @end
 
 @class FLSwipeOptionsCell,FLTableViewRowAction;
