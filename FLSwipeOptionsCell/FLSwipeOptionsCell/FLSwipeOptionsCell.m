@@ -41,8 +41,18 @@
 @end
 
 @implementation FLSwipeOptionsCell{
+    
     CGFloat scrollViewButtonsViewWidth;
-    CGFloat scrollViewStopedOffsetX;
+    
+    CGFloat contentOffsetX;
+    
+    CGFloat oldContentOffsetX;
+    
+    CGFloat newContentOffsetX;
+    
+    BOOL isFullButtonsShowing;
+    
+    
 }
 
 - (void)awakeFromNib {
@@ -75,7 +85,7 @@
     
     // init scrollView content view
     UIView *scrollViewContentView = [[UIView alloc] init];
-    scrollViewContentView.backgroundColor = [UIColor redColor];
+    scrollViewContentView.backgroundColor = [UIColor lightGrayColor];
     self.scrollViewContentView = scrollViewContentView;
     [self.scrollView addSubview:scrollViewContentView];
     
@@ -132,30 +142,122 @@
     
 }
 
+//开始拖拽视图
+
+- (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView{
+//    [self backToZero:self.lastScrollView];
+    contentOffsetX = scrollView.contentOffset.x;
+    
+    if (isFullButtonsShowing) {
+        [self backToZero:scrollView];
+    }
+    
+}
+
+
+
+// 滚动时调用此方法
+
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView{
-    NSLog(@"offset.x = %.2lf",scrollView.contentOffset.x);
+    newContentOffsetX = scrollView.contentOffset.x;
+    NSLog(@"offsetX = %.2lf",scrollView.contentOffset.x);
     if (scrollView.contentOffset.x < 0) {
         scrollView.scrollEnabled = NO;
+        newContentOffsetX = 0.0f;
     }
     else {
         scrollView.scrollEnabled = YES;
-        if (scrollViewStopedOffsetX > scrollView.contentOffset.x) {
-            [self backToZero];
-        }
     }
+    
+    if (newContentOffsetX > oldContentOffsetX && oldContentOffsetX > contentOffsetX) {  // 向左滚动
+        
+        NSLog(@"left");
+        
+    } else if (newContentOffsetX < oldContentOffsetX && oldContentOffsetX < contentOffsetX) { // 向右滚动
+        NSLog(@"right");
+        
+    } else {
+        
+        if ((scrollView.contentOffset.x - contentOffsetX) > 0.0f) {  // 向左拖拽
+            
+            NSLog(@"left-------");
+            if (scrollView.contentOffset.x >= scrollViewButtonsViewWidth / 2) {
+//                [self showFullButtons];
+            }
+        } else if ((contentOffsetX - scrollView.contentOffset.x) > 0.0f) {   // 向右拖拽
+            
+            NSLog(@"right-------");
+            if (scrollView.contentOffset.x <= scrollViewButtonsViewWidth / 2) {
+                [self backToZero:scrollView];
+            }
+        }
+        
+    }
+    
+    
 }
 
-- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView{
-    // 正常速度拖动的时候，这个就会自动记录最后的x为0，防止快速拖动防止记录没有reset，然后上个方法scrollViewStopedOffsetX > scrollView.contentOffset.x一直成立，造成没办法显示按钮，此时在backToZero手动reset可解决
-    scrollViewStopedOffsetX = scrollView.contentOffset.x;
+
+// 完成拖拽(滚动停止时调用此方法，手指离开屏幕)
+
+- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate{
+    // NSLog(@"scrollViewDidEndDragging");
+    
+    oldContentOffsetX = scrollView.contentOffset.x;
+    if (scrollView.contentOffset.x <= 0) {
+        oldContentOffsetX = 0.0f;
+    }
+    // 手指离开后也需要判断,防止快速拖动过去，超过了按钮部分的就不作处理，不然会卡卡的
+    if (scrollView.contentOffset.x >= scrollViewButtonsViewWidth / 2 && scrollView.contentOffset.x < scrollViewButtonsViewWidth) {
+        [self showFullButtons];
+    }
+    else if ((contentOffsetX - scrollView.contentOffset.x) > 0.0f){
+//        [self backToZero:scrollView];
+    }
+    
+    self.lastScrollView = scrollView;
 }
 
-- (void)backToZero{
-    CGPoint offset = self.scrollView.contentOffset;
+- (void)showFullButtons{
+//    CGPoint offset = self.scrollView.contentOffset;
+//    
+//    offset.x = scrollViewButtonsViewWidth;
+//    self.scrollView.contentOffset = offset;
+    [self animationLeftScrollTo:scrollViewButtonsViewWidth];
+    // 标记是否正在显示
+    isFullButtonsShowing = YES;
+}
+
+- (void)animationLeftScrollTo:(CGFloat)end{
+    // 进来先判断是否回到起点，如果是，不执行下面的，因为下面的会设置偏移，因而造成无限循环（0 和 1）
+    if (self.scrollView.contentOffset.x <= 0 || self.scrollView.contentOffset.x == end) {
+        return;
+    }
+    [UIView animateWithDuration:0.001 / end animations:^{
+        
+        CGPoint offset = self.scrollView.contentOffset;
+        
+        offset.x += 1;
+        
+        
+        if (self.scrollView.contentOffset.x >= end) {
+            offset.x = end;
+            self.scrollView.contentOffset = offset;
+            return ;
+        }
+        
+        self.scrollView.contentOffset = offset;
+    } completion:^(BOOL finished) {
+        [self animationLeftScrollTo:end];
+    }];
+}
+
+- (void)backToZero:(UIScrollView *)scrollView{
+    CGPoint offset = scrollView.contentOffset;
     offset.x = 0.0f;
-    self.scrollView.contentOffset = offset;
-    // reset
-    scrollViewStopedOffsetX = 0.0f;
+    scrollView.contentOffset = offset;
+    // 标记是否显示
+    isFullButtonsShowing = NO;
 }
 
 #pragma mark -- Setter & Getter
@@ -173,6 +275,4 @@
     }
     return _buttonWidthArrM;
 }
-
-
 @end
